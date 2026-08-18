@@ -33,3 +33,9 @@ ENTRYPOINT ["/usr/local/bin/mariadb_setup.sh"]
 # Listen on all interfaces so other containers can connect to MariaDB
 CMD ["mariadbd", "--bind-address=0.0.0.0"]
 
+
+
+# https://docs.docker.com/
+# https://nginx.org/en/docs/
+# https://make.wordpress.org/cli/
+# https://mariadb.com/docs
