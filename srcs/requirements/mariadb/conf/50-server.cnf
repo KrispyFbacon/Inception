@@ -1,0 +1,8 @@
+[mysqld]
+# Run as the mysql user for better security
+user = mysql
+port = 3306
+datadir = /var/lib/mysql
+socket = /var/run/mysqld/mysqld.sock
+# Allow connections from other containers (WordPress)
+bind-address = 0.0.0.0
