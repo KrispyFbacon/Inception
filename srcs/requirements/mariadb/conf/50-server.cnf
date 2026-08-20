@@ -1,8 +1,15 @@
 [mysqld]
-# Run as the mysql user for better security
+# Tells MariaDB to run as the 'mysql' user
 user = mysql
+
+# The standard database port
 port = 3306
-datadir = /var/lib/mysql
+
+# Where to put the socket file
 socket = /var/run/mysqld/mysqld.sock
-# Allow connections from other containers (WordPress)
+
+# Where the actual database files are saved on the hard drive
+datadir = /var/lib/mysql
+
+# Listen on all network interfaces so other containers can connect (WordPress)
 bind-address = 0.0.0.0
