@@ -1,0 +1,24 @@
+services:
+  mariadb:
+    build:
+      context: ./requirements/mariadb
+    container_name: mariadb
+    env_file:
+      - ../.env
+    restart: always
+    volumes:
+      - mariadb_vol:/var/lib/mysql
+    secrets:
+      - db_password
+      - db_root_password
+
+volumes:
+  mariadb_vol:
+
+# Secrets storing the passwords
+secrets:
+  db_password:
+    file: ../secrets/mariadb/db_password
+
+  db_root_password:
+    file: ../secrets/mariadb/db_root_password

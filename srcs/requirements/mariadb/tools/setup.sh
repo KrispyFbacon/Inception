@@ -1,21 +1,39 @@
 #!/bin/bash
 
+# Stop if a command fails
+set -e
+
+# Get the database passwords from Docker's secret files.
 DB_ROOT_PASS=$(cat /run/secrets/db_root_password)
 DB_PASS=$(cat /run/secrets/db_password)
 
-# Start MariaDB briefly to set up users
+
+# Start MariaDB temporarily so we can run the initial SQL commands.
 service mariadb start
 
-# Create the database and user defined in your .env
-# The admin name MUST NOT contain "admin" or "administrator" [cite: 107]
+
+
+# Create the database that will be used by WordPress.
 mariadb -e "CREATE DATABASE IF NOT EXISTS \`${SQL_DATABASE}\`;"
-mariadb -e "CREATE USER IF NOT EXISTS \`${SQL_USER}\`@'localhost' IDENTIFIED BY '${DB_PASS}';"
-mariadb -e "GRANT ALL PRIVILEGES ON \`${SQL_DATABASE}\`.* TO \`${SQL_USER}\`@'%' IDENTIFIED BY '${DB_PASS}';"
+
+# Create the WordPress user (database account).
+# '%' allows the account to connect from another container.
+mariadb -e "CREATE USER IF NOT EXISTS '${SQL_USER}'@'%' IDENTIFIED BY '${DB_PASS}';"
+
+# Give the WordPress user access to the database
+mariadb -e "GRANT ALL PRIVILEGES ON \`${SQL_DATABASE}\`.* TO '${SQL_USER}'@'%';"
+
+# Set the password for MariaDB's root account.
 mariadb -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${DB_ROOT_PASS}';"
+
+# Apply the privilege changes
 mariadb -e "FLUSH PRIVILEGES;"
 
-# Shut down the temporary service so 'mysqld' can take over as PID 1
-mysqladmin -u root -p${DB_ROOT_PASS} shutdown
 
-# Execute the CMD from the Dockerfile
+
+# Stop the temporary MariaDB server
+mariadb-admin -u root -p"${DB_ROOT_PASS}" shutdown
+
+
+# Start the CMD from the Dockerfile
 exec "$@"
