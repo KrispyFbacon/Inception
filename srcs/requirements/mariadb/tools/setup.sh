@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Stop if a command fails
-set -e
+# Stop if a command fails ('-ex' prints every command)
+set -ex
 
 # Get the database passwords from Docker's secret files.
 DB_ROOT_PASS=$(cat /run/secrets/db_root_password)
@@ -27,7 +27,7 @@ mariadb -e "GRANT ALL PRIVILEGES ON \`${SQL_DATABASE}\`.* TO '${SQL_USER}'@'%';"
 mariadb -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${DB_ROOT_PASS}';"
 
 # Apply the privilege changes
-mariadb -e "FLUSH PRIVILEGES;"
+mariadb -u root -p"${DB_ROOT_PASS}" -e "FLUSH PRIVILEGES;"
 
 
 
