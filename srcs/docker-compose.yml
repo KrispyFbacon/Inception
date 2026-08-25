@@ -5,15 +5,49 @@ services:
     container_name: mariadb
     env_file:
       - ../.env
+    networks:
+      - inception
     restart: always
     volumes:
       - mariadb_vol:/var/lib/mysql
     secrets:
       - db_password
       - db_root_password
+    # Check if the database is awake (using the updated mariadb-admin command!)
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  wordpress:
+      build: ./requirements/wordpress
+      container_name: wordpress
+      env_file: ./.env
+      networks:
+        - inception
+      restart: always
+      # Wait for the MariaDB healthcheck to pass before booting WordPress
+      depends_on:
+        mariadb:
+          condition: service_healthy
+      volumes:
+        - wordpress_vol:/var/www/wordpress
+      secrets:
+        - db_password
+        - wp_admin_password
+        - wp_user_password
+
+
+# Declare the custom bridge network so containers can talk to each other
+networks:
+  inception:
+    driver: bridge
 
 volumes:
   mariadb_vol:
+  wordpress_vol:
+
 
 # Secrets storing the passwords
 secrets:
@@ -22,3 +56,9 @@ secrets:
 
   db_root_password:
     file: ../secrets/mariadb/db_root_password
+
+  wp_admin_password:
+    file: ../secrets/wordpress/wp_admin_password
+  
+  wp_user_password:
+    file: ../secrets/wordpress/wp_user_password

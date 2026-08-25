@@ -49,6 +49,10 @@ if [ ! -f "/var/www/wordpress/wp-config.php" ]; then
 	# Install and activate the Twenty Twenty-Four theme
 	wp theme install twentytwentyfour --activate --allow-root
 
+
+	# Give ownership of WordPress files to PHP-FPM
+	chown -R www-data:www-data /var/www/wordpress
+
 fi
 
 
