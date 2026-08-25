@@ -37,7 +37,7 @@ ENTRYPOINT ["/usr/local/bin/mariadb_setup.sh"]
 
 
 # Start the MariaDB server in the foreground
-# Listen on all interfaces so other containers can connect to MariaDB
+# The bind-address is configured separately in 50-server.cnf
 CMD ["mariadbd"]
 
 
