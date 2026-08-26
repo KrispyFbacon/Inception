@@ -4,33 +4,33 @@ services:
       context: ./requirements/mariadb
     container_name: mariadb
     env_file:
-      - ../.env
-    networks:
-      - inception
-    restart: always
-    volumes:
-      - mariadb_vol:/var/lib/mysql
-    secrets:
-      - db_password
-      - db_root_password
+      - ./.env
     # Check if the database is awake (using the updated mariadb-admin command!)
     healthcheck:
       test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
       interval: 5s
       timeout: 2s
       retries: 10
-
+    networks:
+      - inception
+    restart: always 
+    volumes:
+      - mariadb_vol:/var/lib/mysql
+    secrets:
+      - db_password
+      - db_root_password
+    
   wordpress:
       build: ./requirements/wordpress
       container_name: wordpress
       env_file: ./.env
-      networks:
-        - inception
-      restart: always
       # Wait for the MariaDB healthcheck to pass before booting WordPress
       depends_on:
         mariadb:
           condition: service_healthy
+      networks:
+        - inception
+      restart: always
       volumes:
         - wordpress_vol:/var/www/wordpress
       secrets:
