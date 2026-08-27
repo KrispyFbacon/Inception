@@ -1,5 +1,6 @@
 services:
   mariadb:
+    image: mariadb
     build:
       context: ./requirements/mariadb
     container_name: mariadb
@@ -21,23 +22,38 @@ services:
       - db_root_password
     
   wordpress:
-      build: ./requirements/wordpress
-      container_name: wordpress
-      env_file: ./.env
-      # Wait for the MariaDB healthcheck to pass before booting WordPress
-      depends_on:
-        mariadb:
-          condition: service_healthy
-      networks:
-        - inception
-      restart: always
-      volumes:
-        - wordpress_vol:/var/www/wordpress
-      secrets:
-        - db_password
-        - wp_admin_password
-        - wp_user_password
+    image: wordpress
+    build: ./requirements/wordpress
+    container_name: wordpress
+    env_file: ./.env
+    # Wait for the MariaDB healthcheck to pass before booting WordPress
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - inception
+    restart: always
+    volumes:
+      - wordpress_vol:/var/www/wordpress
+    secrets:
+      - db_password
+      - wp_admin_password
+      - wp_user_password
 
+  nginx:
+    image: nginx
+    build: ./requirements/nginx
+    container_name: nginx
+    depends_on:
+      wordpress:
+        condition: service_started
+    networks:
+      - inception
+    ports:
+      - "443:443"
+    restart: always
+    volumes:
+      - wordpress_vol:/var/www/wordpress
 
 # Declare the custom bridge network so containers can talk to each other
 networks:
@@ -46,7 +62,18 @@ networks:
 
 volumes:
   mariadb_vol:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/mariadb
+
   wordpress_vol:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/wordpress
 
 
 # Secrets storing the passwords
