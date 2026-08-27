@@ -8,7 +8,7 @@ services:
       - ./.env
     # Check if the database is awake (using the updated mariadb-admin command!)
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root -p$$(cat /run/secrets/db_root_password)"]
       interval: 5s
       timeout: 2s
       retries: 10

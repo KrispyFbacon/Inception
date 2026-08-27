@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Stop if a command fails ('-e' exits on error, '-x' prints every command)
-set -ex
+set -e
 
 
 # Get the database passwords from Docker's secret files.
@@ -11,7 +11,7 @@ DB_PASS=$(cat /run/secrets/db_password)
 
 
 # Initialize MariaDB only on the first startup.
-if [ ! -d "/var/lib/mysql/mysql" ]; then
+if [ ! -d "/var/lib/mysql/${SQL_DATABASE}" ]; then
 
     # Start MariaDB temporarily so we can run the initial SQL commands.
     service mariadb start

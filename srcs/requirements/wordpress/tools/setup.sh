@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Stop if a command fails ('-e' exits on error, '-x' prints every command)
-set -ex
+set -e
 
 
 # Only initialize WordPress on the first startup

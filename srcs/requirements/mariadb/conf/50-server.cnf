@@ -12,4 +12,4 @@ socket = /var/run/mysqld/mysqld.sock
 datadir = /var/lib/mysql
 
 # Listen on all network interfaces so other containers can connect (WordPress)
-bind-address = 0.0.0.0
+bind-address = 0.0.0.0 
