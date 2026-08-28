@@ -39,10 +39,3 @@ ENTRYPOINT ["/usr/local/bin/mariadb_setup.sh"]
 # Start the MariaDB server in the foreground
 # The bind-address is configured separately in 50-server.cnf
 CMD ["mariadbd"]
-
-
-
-# https://docs.docker.com/
-# https://nginx.org/en/docs/
-# https://make.wordpress.org/cli/
-# https://mariadb.com/docs
