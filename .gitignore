@@ -1,3 +1,11 @@
 
 # TODO 
-# CHANGE HARDCODE CDOMAIN NAME NGINX 
+# CHANGE HARDCODE CDOMAIN NAME NGINX
+# UPDATE DEV_DOC
+# DO USER_DOC
+
+# Environment configuration
+#srcs/.env
+
+# Docker secrets
+#secrets/

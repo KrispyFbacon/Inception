@@ -7,20 +7,16 @@
 ## Description
 This project aims to develop system administration skills by building a small web infrastructure with Docker and Docker Compose. The goal is to deploy a WordPress website using separate containers for NGINX, WordPress/PHP-FPM, and MariaDB.
 
-Each service has a specific role and communicates with the others through a dedicated Docker bridge network. NGINX is the only service directly accessible from the host, while WordPress and MariaDB remain accessible only through the internal network. Persistent website and database data are stored on the host, and sensitive credentials are handled using Docker secrets.
+Each service has a specific role and communicates with the others through a dedicated Docker bridge network. NGINX is the only service directly accessible from the host, while WordPress and MariaDB remain accessible only through the Docker network. Persistent website and database data are stored on the host, and sensitive credentials are handled using Docker secrets.
 
 
 ## Architecture Overview
-The infrastructure is designed with clear separation between the web server, application, and database. `NGINX` acts as the only service exposed to the host, while `WordPress` and `MariaDB` communicate through the internal Docker bridge network. 
 
-- **NGINX** — acts as the web server and the only publicly exposed service.
-  It handles `HTTPS` connections on port `443` (`TLSv1.2`/`TLSv1.3` only) and forwards `PHP` requests to `WordPress` through `FastCGI`.
-- **WordPress** — provides the web application and runs through `PHP-FPM`,
-  without NGINX bundled into the same container.
-- **MariaDB** — provides the database used by WordPress and listens on
-  port `3306` inside the Docker network.
+- **NGINX** — acts as the web server and the only service exposed to the host. It handles `HTTPS` connections on port `443` (`TLSv1.2`/`TLSv1.3` only) and forwards `PHP` requests to `WordPress` through `FastCGI`.
+- **WordPress** — provides the web application and runs with `PHP-FPM` in a dedicated container, separate from `NGINX`.
+- **MariaDB** — provides the database used by `WordPress` and listens on port `3306` for connections from other containers on the Docker network. The port is not published to the host.
 
-The services are connected through a dedicated Docker bridge network. Only NGINX exposes a port to the host; ports `9000` (PHP-FPM) and `3306` (MariaDB) remain internal to the Docker network.
+The services are connected through a dedicated Docker bridge network. Only `NGINX` exposes a port to the host; ports `9000` (PHP-FPM) and `3306` (MariaDB) remain internal to the Docker network.
 
 Persistent data is stored using two named Docker volumes, `mariadb_vol` and `wordpress_vol`. These volumes are configured to use directories on the host defined by the `DATA_PATH` variable in `.env`. Therefore, `MariaDB` data is stored in `${DATA_PATH}/mariadb` and `WordPress` data in `${DATA_PATH}/wordpress`. This keeps the persistent data outside the containers and at a predictable location on the host.
 
@@ -43,7 +39,7 @@ Persistent data is stored using two named Docker volumes, `mariadb_vol` and `wor
                  │     :9000    │
                  └──────┬───────┘
                         │
-                      :3306
+                   MariaDB :3306
                         │
                         ▼
                  ┌──────────────┐
@@ -71,12 +67,14 @@ Persistent data is stored using two named Docker volumes, `mariadb_vol` and `wor
 
 ### Requirements
  
-- A Virtual Machine (or equivalent) running a supported `Linux` distribution
+- A `Linux` environment (physical machine or Virtual Machine)
 - `Docker` and `Docker Compose` installed
 - `make`
 
 
 ### Setup
+
+The current configuration is specific to the `frbranda.42.fr` domain.
 
 1. Clone the repository:
     ```bash
@@ -86,8 +84,8 @@ Persistent data is stored using two named Docker volumes, `mariadb_vol` and `wor
 
 2. Ensure your `.env` file is properly configured inside the `srcs/` directory.
 
-3. Ensure the following password files exist under a `secrets/` directory at
-   the project `root`, each containing only the raw password as plain text:
+3. Create the following password files under a `secrets/` directory at the project `root`. Each file should contain only the corresponding raw password as plain text:
+
     ```
     secrets/
     ├── mariadb/
@@ -98,10 +96,14 @@ Persistent data is stored using two named Docker volumes, `mariadb_vol` and `wor
         └── wp_user_password
     ```
 
-4. Add `127.0.0.1 frbranda.42.fr` to your host machine's `/etc/hosts` file:
+    **Security:** The .env file and Docker secret files contain environment-specific configuration and credentials and are excluded from version control through .gitignore. Never commit actual passwords or secret files to the repository.
+
+4. Add `127.0.0.1 frbranda.42.fr` to your host machine's hosts file. This makes `frbranda.42.fr` resolve to your local machine, allowing the domain to be used to access the website. On `Linux`, the hosts file is located at `/etc/hosts`:
     ```bash
     echo "127.0.0.1 frbranda.42.fr" | sudo tee -a /etc/hosts
     ```
+
+For detailed configuration, customization, and troubleshooting, see `DEV_DOC.md`.
 
 ### Build & Run
  
@@ -109,7 +111,7 @@ Persistent data is stored using two named Docker volumes, `mariadb_vol` and `wor
 make            # builds the images and starts all containers
 make down       # stops and removes the containers
 make clean      # removes containers and networks, keeping images and data
-make fclean     # removes containers, networks, images, volumes and host data
+make fclean     # WARNING: removes containers, images, volumes and persistent data under DATA_PATH
 make re         # completely resets and rebuilds the project
 ```
  
@@ -121,22 +123,20 @@ https://frbranda.42.fr
  
 ### Verifying the setup
  
-```bash
-docker ps               # check that all containers are Up
-docker network ls       # inception network should be listed
-docker volume ls        # wordpress data + db data volumes should be listed
-```
+For detailed service, networking, database, WordPress, HTTPS, and persistence tests, see `DEV_DOC.md`.
 
 
 ## Documentation
 
-The project is configured to run with the domain `frbranda.42.fr`. For information about customizing the configuration, understanding the infrastructure, or using the deployed `WordPress` service, refer to the documentation below.
+ For information about customizing the configuration, understanding the infrastructure, or using the deployed `WordPress` service, refer to the documentation below.
 
 * [`USER_DOC.md`](USER_DOC.md) — explains how to use and manage the deployed WordPress service.
 * [`DEV_DOC.md`](DEV_DOC.md) — provides detailed information about the Docker architecture, configuration, customization, development, and troubleshooting.
 
 
 ## Project Architecture & Technical Choices
+
+The following choices were made to keep the infrastructure separated, lightweight, and manageable.
 
 * **Virtual Machines vs Docker:** Virtual machines require a complete guest operating system, which generally results in higher resource usage. Docker containers share the host operating system kernel and isolate applications at the process level, generally resulting in lower overhead and faster startup times.
 
@@ -149,8 +149,8 @@ The project is configured to run with the domain `frbranda.42.fr`. For informati
 
 ## Resources
 - [Docker official documentation](https://docs.docker.com/)
-- [Docker Compose file reference](https://docs.docker.com/compose/compose-file/)
-- [Docker secrets documentation](https://docs.docker.com/engine/swarm/secrets/)
+- [Docker Compose file reference](https://docs.docker.com/reference/compose-file/)
+- [Docker secrets documentation](https://docs.docker.com/compose/how-tos/use-secrets/)
 - [NGINX documentation](https://nginx.org/en/docs/)
 - [MariaDB documentation](https://mariadb.com/docs)
 - [WordPress CLI documentation](https://make.wordpress.org/cli/)
