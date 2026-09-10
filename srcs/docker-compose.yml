@@ -44,6 +44,7 @@ services:
     image: nginx
     build: ./requirements/nginx
     container_name: nginx
+    env_file: ./.env
     depends_on:
       wordpress:
         condition: service_started
