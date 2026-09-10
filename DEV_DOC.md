@@ -19,15 +19,10 @@ Install the following before setting up the project:
 Verify each is installed:
 
 ```bash
-
 docker --version
-
 docker compose version
-
 make --version
-
 git --version
-
 ```
 
 ---
@@ -84,21 +79,89 @@ WP_USER_EMAIL=author@example.com
  
 | Variable | Purpose |
 |---|---|
-| `DOMAIN_NAME` | Domain used by NGINX and WordPress. It must match the domain configured in `/etc/hosts.`|
+| `DOMAIN_NAME` | Domain configured for the WordPress site and used as the project domain.|
 | `DATA_PATH` | Base directory on the host where the persistent MariaDB and WordPress data is stored.|
 | `SQL_DATABASE` | Name of the MariaDB database created for WordPress.|
 | `SQL_USER` | Non-root MariaDB user used by WordPress to access the database.|
-| `DATA_PATH` | Host directory under which persistent MariaDB and WordPress data is stored (see §9). |
-| `WP_ADMIN_USER` | Username of the WordPress administrator account created during initialization.
-| `WP_ADMIN_EMAIL` | Email address associated with the WordPress administrator account.
-| `WP_USER` | Username of the additional WordPress user created during initialization.
-| `WP_USER_EMAIL` |Email address associated with the additional WordPress user.
+| `WP_ADMIN_USER` | Username of the WordPress administrator account created during initialization.|
+| `WP_ADMIN_EMAIL` | Email address associated with the WordPress administrator account.|
+| `WP_USER` | Username of the additional WordPress user created during initialization.|
+| `WP_USER_EMAIL` | Email address associated with the additional WordPress user.|
+
+---
+
+### Example .env Configuration
+
+The following shows the main non-sensitive values that can be customized:
+
+```env
+# Domain Settings
+DOMAIN_NAME=<your_login>.42.fr
+
+# Base path on the host where persistent MariaDB and WordPress data is stored.
+DATA_PATH=/home/<your_login>/data
+
+# MariaDB Settings
+SQL_DATABASE=wordpress_db
+SQL_USER=wp_user
+
+# WordPress Settings
+WP_ADMIN_USER=admin_name
+WP_ADMIN_EMAIL=admin@example.com
+WP_USER=author_name
+WP_USER_EMAIL=author@example.com
+``` 
+
+Passwords are intentionally not stored in `.env`; they are managed through Docker secrets in §1.6.
+
+
+### 1.4 Changing the Domain
+
+The default configuration uses `frbranda.42.fr`. To use a different domain, update `DOMAIN_NAME` in `srcs/.env`:
+
+```env
+DOMAIN_NAME=example.42.fr
+```
+The corresponding hostname must also be mapped to the local machine in `/etc/hosts`:
+
+```text
+127.0.0.1 example.42.fr
+```
+
+`DOMAIN_NAME` is substituted into the NGINX configuration and the self-signed certificate's `CN` automatically at container startup. No manual edits to the NGINX configuration or Dockerfile are required.
+
+After changing the domain-related configuration, rebuild the project:
+
+```bash
+make re
+```
+
+A full reset is recommended for an existing installation because the WordPress site URL is stored in the database during initialization.
+
+
+### 1.5 Changing the Data Location
+
+`DATA_PATH` determines the base directory on the host where persistent project data is stored.
+
+
+For example:
+
+```env
+DATA_PATH=/home/<your_login>/data
+```
+
+The corresponding directories are:
+
+```text
+/home/<your_login>/data/mariadb
+/home/<your_login>/data/wordpress
+```
+
+Changing `DATA_PATH` does not automatically move existing data. If existing data needs to be preserved, it must be moved or copied to the new location before starting the project with the new path.
+
+### 1.6 Docker Secrets
  
-Passwords are intentionally not stored in `.env`. They are managed through Docker secrets in §4.2.
- 
-### 4.2 Docker Secrets
- 
-Credentials are provided as Docker secrets rather than environment variables, so they're passed to containers as files instead of being visible in `docker inspect` or process environments. They live on the host under `secrets/`:
+Credentials are provided as Docker secrets rather than environment variables. Docker Compose mounts them inside the containers as files under `/run/secrets/`:
  
 ```
 secrets/
@@ -110,17 +173,108 @@ secrets/
     └── wp_user_password
 ```
  
-Each file contains only the raw password, nothing else. Inside the containers, Compose mounts them under `/run/secrets/`, e.g.:
+Each file contains only the raw password, nothing else. Inside the containers, Docker Compose mounts them under `/run/secrets/`:
  
 ```
 /run/secrets/db_password
 /run/secrets/db_root_password
+/run/secrets/wp_admin_password
+/run/secrets/wp_user_password
 ```
  
 **Security:** `.env` and `secrets/` are excluded from version control via `.gitignore`. Never commit real passwords or secret files.
  
 ---
  
+## 2. Build and Launch
+
+### 2.1 Build and Start
+
+From the project root, run:
+
+```bash
+make
+```
+
+This builds the Docker images and starts all services in detached mode.
+
+To check that the containers are running:
+
+```bash
+make status
+```
+
+The expected services are:
+
+- `nginx`
+- `wordpress`
+- `mariadb`
+
+
+### 2.2 Stop the Project
+
+```bash
+make down
+```
+
+Stops and removes the containers while preserving images and persistent data.
+
+For a complete reset:
+
+```bash
+make fclean
+```
+
+**Warning:** `make fclean` permanently deletes the `WordPress` and `MariaDB` data stored under `DATA_PATH`.
+
+
+### 2.3 Rebuild the Project
+
+```bash
+make re
+```
+
+**Warning**: `make re` permanently deletes the persistent `WordPress` and `MariaDB` data stored under `DATA_PATH` before rebuilding the project.
+
+
+### 2.4 View Logs
+
+To view logs from all services:
+
+```bash
+make logs
+```
+
+To inspect a specific container directly:
+
+```bash
+docker logs nginx
+docker logs wordpress
+docker logs mariadb
+```
+
+## 3. Project Management
+
+### 3.1 Makefile Commands
+
+| Command | Purpose |
+|---|---|
+| `make` | Same as `make up`: create data directories, then build and start all containers. |
+| `make build` | Build the Docker images without starting the containers. |
+| `make up` | Create the persistent data directories, then build and start all containers. |
+| `make down` | Stop and remove the containers and network. Persistent data and images are kept. |
+| `make stop` | Stop the running containers without removing them. |
+| `make start` | Start stopped containers. |
+| `make restart` | Restart the containers. |
+| `make logs` | Display logs from all services. |
+| `make status` | Display the current status of the containers. |
+| `make clean` | Same as `make down`, with a confirmation message.|
+| `make fclean` | Completely reset the project by removing containers, images, volumes, and persistent data. |
+| `make re` | Perform a complete reset with `fclean`, then build and start the project again. |
+
+---
+
+
 ## 5. Initial Setup
  
 ### 5.1 Clone the repository
@@ -210,48 +364,6 @@ docker inspect mariadb
  
 ---
  
-## 7. Container Architecture
- 
-### NGINX
- 
-- Built from a Debian base image, with NGINX compiled/installed rather than using the official NGINX image (per project constraints).
-- Terminates HTTPS on port `443` using a self-signed certificate, restricted to TLSv1.2/TLSv1.3.
-- Forwards PHP requests to WordPress over FastCGI on `wordpress:9000`.
-- It's the only container with a host-published port, since it's the sole intended entry point into the stack — WordPress and MariaDB have no reason to be reachable directly from outside the Docker network.
-### WordPress
- 
-- Contains the WordPress core files and runs PHP-FPM, listening on port `9000` for FastCGI requests from NGINX.
-- Does **not** bundle NGINX — it only speaks FastCGI, it doesn't serve HTTP itself.
-- Connects to MariaDB over the Docker network at `mariadb:3306` using the credentials from `SQL_USER`/`db_password`.
-- WordPress installation and configuration (site URL, admin user, plugins, etc.) is automated with WP-CLI during container startup, rather than done manually through the web install wizard.
-### MariaDB
- 
-- Runs the database server, listening on port `3306`, reachable only from other containers on the Docker network (not published to the host).
-- On first startup, initializes the database (`SQL_DATABASE`), creates the application user (`SQL_USER`) using `db_password`, and sets the root password from `db_root_password`.
-- Exposes a healthcheck so Compose can hold WordPress back from starting until MariaDB reports healthy, avoiding connection errors during startup.
----
- 
-## 8. Networking
- 
-```
-Host
- │
- │ HTTPS :443
- ▼
-NGINX
- │
- │ FastCGI :9000
- ▼
-WordPress
- │
- │ MySQL/MariaDB :3306
- ▼
-MariaDB
-```
- 
-All three containers sit on a single custom Docker bridge network. Docker's built-in DNS lets each container resolve the others by service name — `wordpress` reaches MariaDB at `mariadb:3306`, and NGINX reaches WordPress at `wordpress:9000` — with no manual IP configuration needed. Ports `9000` and `3306` are exposed *between containers* on this network but are never published to the host, so nothing outside the Docker network can reach PHP-FPM or MariaDB directly.
- 
----
  
 ## 9. Volumes and Persistent Data
  
@@ -384,15 +496,6 @@ Expected — the project uses a self-signed certificate rather than one from a p
  
 ---
  
-## 13. Cleanup
- 
-| Command | Effect |
-|---|---|
-| `make clean` | Removes containers and networks, keeps images and data |
-| `make fclean` | Removes containers, images, volumes, **and** persistent data under `DATA_PATH` |
- 
-**Warning:** `make fclean` is destructive and irreversible — it deletes everything under `DATA_PATH`, including the WordPress site and database contents.
- 
 ---
  
 ## 14. Development & Customization
@@ -405,22 +508,8 @@ Expected — the project uses a self-signed certificate rather than one from a p
 - **Non-sensitive configuration:** `srcs/.env`
 After changing a Dockerfile, a config file that's copied at build time, or `docker-compose.yml`, rebuild the affected image(s):
  
-```bash
-make
-```
-or, targeting Compose directly:
-```bash
-docker compose -f srcs/docker-compose.yml up -d --build
-```
+ ```bash
+ make
+ ```
  
 ---
- 
-## 15. Technical References
- 
-- [Docker documentation](https://docs.docker.com/)
-- [Docker Compose file reference](https://docs.docker.com/reference/compose-file/)
-- [Docker secrets](https://docs.docker.com/compose/how-tos/use-secrets/)
-- [NGINX documentation](https://nginx.org/en/docs/)
-- [MariaDB documentation](https://mariadb.com/docs)
-- [WP-CLI documentation](https://make.wordpress.org/cli/)
-- [WordPress documentation](https://wordpress.org/documentation/)
