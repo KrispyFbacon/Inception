@@ -141,10 +141,8 @@ A full reset is recommended for an existing installation because the WordPress s
 
 ### 1.5 Changing the Data Location
 
-`DATA_PATH` determines the base directory on the host where persistent project data is stored.
+`DATA_PATH` determines the base directory on the host where persistent project data is stored:
 
-
-For example:
 
 ```env
 DATA_PATH=/home/<your_login>/data
@@ -156,6 +154,12 @@ The corresponding directories are:
 /home/<your_login>/data/mariadb
 /home/<your_login>/data/wordpress
 ```
+
+These directories are used as the host-side storage for the named Docker volumes `mariadb_vol` and `wordpress_vol`. The volumes use Docker's local volume driver with bind-mount options, so Docker manages them as named volumes while the actual data is stored at the location defined by `DATA_PATH`.
+
+Because the data is stored outside the containers, it survives container removal with `make down` and rebuilds that do not call `make fclean`.
+
+The data is deleted by `make fclean`. `make re` also deletes the data because it runs `make fclean` before rebuilding the project.
 
 Changing `DATA_PATH` does not automatically move existing data. If existing data needs to be preserved, it must be moved or copied to the new location before starting the project with the new path.
 
@@ -173,7 +177,7 @@ secrets/
     └── wp_user_password
 ```
  
-Each file contains only the raw password, nothing else. Inside the containers, Docker Compose mounts them under `/run/secrets/`:
+Each file contains only the raw password, nothing else. The corresponding paths inside the containers are:
  
 ```
 /run/secrets/db_password
@@ -225,7 +229,7 @@ For a complete reset:
 make fclean
 ```
 
-**Warning:** `make fclean` permanently deletes the `WordPress` and `MariaDB` data stored under `DATA_PATH`.
+**Warning**: `make fclean` removes the containers, network, all project images, Docker volumes, and the persistent data under `DATA_PATH`. The next `make` or `make re` will rebuild the required images from scratch.
 
 
 ### 2.3 Rebuild the Project
@@ -234,7 +238,7 @@ make fclean
 make re
 ```
 
-**Warning**: `make re` permanently deletes the persistent `WordPress` and `MariaDB` data stored under `DATA_PATH` before rebuilding the project.
+**Warning**: `make re` removes the containers, network, all project images, Docker volumes, and the persistent data under `DATA_PATH` before rebuilding the project.
 
 
 ### 2.4 View Logs
@@ -273,6 +277,51 @@ docker logs mariadb
 | `make re` | Perform a complete reset with `fclean`, then build and start the project again. |
 
 ---
+
+### 3.2 Volume Management
+
+The project defines two named Docker volumes:
+
+- mariadb_vol
+- wordpress_vol
+
+Docker Compose prefixes these names with the project name. With the current configuration, the actual Docker volume names are:
+
+```text
+srcs_mariadb_vol
+srcs_wordpress_vol
+```
+
+List the Docker volumes:
+
+```bash
+docker volume ls
+```
+
+Inspect a volume's configuration:
+
+```bash
+docker volume inspect srcs_mariadb_vol
+docker volume inspect srcs_wordpress_vol
+```
+
+The inspection output can be used to verify the host-side storage location configured through `DATA_PATH`.
+
+With the default configuration:
+
+- `srcs_mariadb_vol`    → `/home/frbranda/data/mariadb`
+- `srcs_wordpress_vol`  → `/home/frbranda/data/wordpress`
+
+---
+
+
+
+
+
+
+
+
+
 
 
 ## 5. Initial Setup
