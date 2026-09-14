@@ -257,6 +257,8 @@ docker logs wordpress
 docker logs mariadb
 ```
 
+---
+
 ## 3. Project Management
 
 ### 3.1 Makefile Commands
@@ -278,7 +280,53 @@ docker logs mariadb
 
 ---
 
-### 3.2 Volume Management
+### 3.2 Equivalent Docker Compose Commands
+ 
+The Makefile is a convenience wrapper: every target ultimately calls `docker compose` against `srcs/docker-compose.yml`. If you want to work without the Makefile, the equivalent commands are:
+ 
+```bash
+docker compose -f srcs/docker-compose.yml up -d --build   # build and start
+docker compose -f srcs/docker-compose.yml down             # stop and remove
+docker compose -f srcs/docker-compose.yml ps               # container status
+docker compose -f srcs/docker-compose.yml logs             # all logs
+```
+ 
+### 3.3 Container Inspection
+ 
+Beyond the Makefile/Compose commands above, these Docker commands are useful for direct inspection and debugging.
+ 
+**Inspect a container**
+ 
+```bash
+docker ps                     # is it running?
+docker logs -f wordpress      # follow its logs live
+docker inspect wordpress      # full config: health, restart policy, network
+```
+ 
+Use these to check a specific container's state — whether it's up, what it's currently logging, and its complete configuration.
+ 
+**Inspect Docker resources**
+ 
+```bash
+docker images                 # built images
+docker volume ls              # named volumes
+docker network ls             # networks
+```
+ 
+Use these to see what Docker has built or created for the project as a whole, independent of any single container.
+ 
+**Open a shell inside a container**
+ 
+```bash
+docker exec -it nginx bash
+docker exec -it wordpress bash
+docker exec -it mariadb bash
+```
+ 
+Useful for debugging — e.g. checking that a config file was copied correctly, or running a command inside the container's actual environment.
+
+
+### 3.4 Volume Management
 
 The project defines two named Docker volumes:
 
@@ -314,240 +362,20 @@ With the default configuration:
 
 ---
 
+## 4. Troubleshooting
+ 
+Common first steps when something isn't working:
+ 
+- **A service won't start / exits immediately**: check its logs with `make logs` or `docker logs -f <container>` for the exact error.
+- **A container doesn't come back after a crash**: confirm its restart policy with `docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' <container>` — it should be set to restart automatically (e.g. `always` or `unless-stopped` in `docker-compose.yml`).
+- **WordPress can't reach the database**: confirm `mariadb` is up and healthy (`docker ps`, `docker inspect mariadb`), and check the credentials under `/run/secrets/` inside the `wordpress` container with `docker exec -it wordpress bash`. All three services share a single Docker network and reach each other by service name (`mariadb`, `wordpress`, `nginx`), not by IP.
+- **Site loads with the wrong domain / certificate mismatch**: confirm `DOMAIN_NAME` in `srcs/.env` matches the entry added to `/etc/hosts`, then run `make re` (site URLs are stored in the database at initialization, so a partial rebuild won't update them).
+- **Changes to `.env` or secrets don't seem to apply**: restart or rebuild the affected services so they read the updated configuration. For a completely fresh initialization, use `make re` — note that this deletes persistent data.
+- **Data looks reset unexpectedly**: check whether `make fclean` or `make re` was run recently — both remove the volumes and everything under `DATA_PATH`.
 
+ ---
 
-
-
-
-
-
-
-
-
-## 5. Initial Setup
- 
-### 5.1 Clone the repository
- 
-```bash
-git clone <repo-url> inception
-cd inception
-```
- 
-### 5.2 Configure `.env`
- 
-Edit `srcs/.env` and set `DOMAIN_NAME`, `SQL_DATABASE`, `SQL_USER`, and `DATA_PATH` for your environment. If you're deploying under a different domain or want data stored elsewhere on the host, this is the only file you need to change.
- 
-### 5.3 Create secrets
- 
-```bash
-mkdir -p secrets/mariadb secrets/wordpress
- 
-echo "your_db_password"      > secrets/mariadb/db_password
-echo "your_db_root_password" > secrets/mariadb/db_root_password
-echo "your_wp_admin_password" > secrets/wordpress/wp_admin_password
-echo "your_wp_user_password"  > secrets/wordpress/wp_user_password
-```
- 
-Each file must contain only its corresponding password, with no extra whitespace or newlines beyond what your editor/shell adds.
- 
-### 5.4 Configure the domain
- 
-NGINX serves the site under `frbranda.42.fr`, so that hostname needs to resolve to your local machine:
- 
-```bash
-echo "127.0.0.1 frbranda.42.fr" | sudo tee -a /etc/hosts
-```
- 
-Without this entry, requests to `https://frbranda.42.fr` won't reach the container — the domain has no public DNS record, it only resolves locally via `/etc/hosts`.
- 
----
- 
-## 6. Build, Launch & Management
- 
-### 6.1 Makefile targets
- 
-| Command | Purpose |
-|---|---|
-| `make` | Build images and start all containers |
-| `make down` | Stop and remove containers |
-| `make clean` | Remove containers and networks, keep images and data |
-| `make fclean` | Remove containers, images, volumes, and persistent data under `DATA_PATH` |
-| `make re` | `fclean` followed by a full rebuild and restart |
- 
-**Warning:** `make fclean` deletes the persistent data directories under `DATA_PATH`. Don't run it unless you intend to lose the current WordPress/MariaDB data.
- 
-### 6.2 Equivalent Docker Compose commands
- 
-If you want to work without the Makefile:
- 
-```bash
-docker compose -f srcs/docker-compose.yml up -d --build   # build and start
-docker compose -f srcs/docker-compose.yml down             # stop and remove
-docker compose -f srcs/docker-compose.yml ps               # container status
-docker compose -f srcs/docker-compose.yml logs             # all logs
-```
- 
-### 6.3 Day-to-day inspection
- 
-```bash
-docker ps                     # running containers
-docker images                 # built images
-docker volume ls              # named volumes
-docker network ls             # networks
- 
-docker logs nginx
-docker logs wordpress
-docker logs mariadb
-docker logs -f wordpress      # follow logs live
- 
-docker exec -it nginx bash
-docker exec -it wordpress bash
-docker exec -it mariadb bash
- 
-docker inspect nginx
-docker inspect wordpress
-docker inspect mariadb
-```
- 
-`docker exec` is primarily useful for debugging — e.g. checking a config file was copied correctly, or running a command inside the container's actual environment.
- 
----
- 
- 
-## 9. Volumes and Persistent Data
- 
-Two named Docker volumes hold persistent data:
- 
-- `mariadb_vol` → `${DATA_PATH}/mariadb`
-- `wordpress_vol` → `${DATA_PATH}/wordpress`
-With the current `.env`, that resolves to:
- 
-```
-/home/frbranda/data/mariadb
-/home/frbranda/data/wordpress
-```
- 
-These are named volumes configured with bind-mount driver options — so `docker volume ls` and `docker volume inspect` treat them as regular managed volumes, but the underlying data is physically stored at a predictable, directly inspectable path on the host rather than buried in Docker's internal storage directory.
- 
-```bash
-docker volume ls
-docker volume inspect mariadb_vol
-docker volume inspect wordpress_vol
-```
- 
-**Important distinction:**
-- Removing or recreating containers (`make down`, `make clean`) does **not** touch this data — the volumes persist independently of the containers.
-- `make fclean` removes the volumes **and** the data under `DATA_PATH` — this is destructive and cannot be undone.
----
- 
-## 10. Credentials Management
- 
-Four credentials exist, split between the database and WordPress:
- 
-| File | Used for |
-|---|---|
-| `secrets/mariadb/db_root_password` | MariaDB root account |
-| `secrets/mariadb/db_password` | The `SQL_USER` application account WordPress connects with |
-| `secrets/wordpress/wp_admin_password` | WordPress administrator login |
-| `secrets/wordpress/wp_user_password` | WordPress regular (non-admin) user login |
- 
-All four are stored as plain-text files on the host under `secrets/` and mounted read-only inside their respective containers under `/run/secrets/`.
- 
-**To change a credential for a fresh install:** edit the relevant file under `secrets/` before running `make` (or after a `make fclean`, which wipes existing data) — the new value will be picked up the next time MariaDB/WordPress initialize.
- 
-**To change a credential after the stack is already running:** editing the secret file alone is not enough. MariaDB and WordPress only read secrets during their *initial* setup — the database user and WordPress accounts are already created with the old password. You'd need to update the password inside the running service itself (e.g. `ALTER USER` in MariaDB, or through `wp user update` via WP-CLI for WordPress accounts) in addition to updating the secret file, so the two stay in sync.
- 
----
- 
-## 11. Testing and Verification
- 
-### 11.1 Check containers are running
- 
-```bash
-docker ps
-```
- 
-Expected: `nginx`, `wordpress`, and `mariadb` all show `Up`, with `mariadb` showing `(healthy)` once its healthcheck passes.
- 
-### 11.2 Check HTTPS
- 
-```bash
-curl -k -I https://frbranda.42.fr
-```
- 
-Expected: `HTTP/1.1 200 OK`. The `-k` flag is required because the certificate is self-signed, so `curl` doesn't trust it by default.
- 
-### 11.3 Check the certificate and TLS version
- 
-```bash
-openssl s_client -connect frbranda.42.fr:443 </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates
-```
- 
-Confirm the negotiated protocol is TLSv1.2 or TLSv1.3 (shown in the `openssl s_client` output) and that older protocols are rejected.
- 
-### 11.4 Check MariaDB health
- 
-```bash
-docker inspect --format='{{.State.Health.Status}}' mariadb
-```
- 
-Expected: `healthy`.
- 
-### 11.5 Check networking
- 
-```bash
-docker network ls
-docker network inspect inception
-```
- 
-Confirm all three containers appear as members of the same network.
- 
-### 11.6 Check persistence
- 
-1. Make a change in WordPress (e.g. create a test post).
-2. `make down` then `make up` (or `make re`).
-3. Confirm the change is still there — this verifies data survives container recreation.
-### 11.7 Check port exposure
- 
-```bash
-docker ps
-```
- 
-Only `nginx` should show a host-published port mapping (`0.0.0.0:443->443/tcp`); `wordpress` and `mariadb` should show their ports without a host mapping, confirming they aren't reachable from outside the Docker network.
- 
----
- 
-## 12. Troubleshooting
- 
-**MariaDB keeps restarting**
-```bash
-docker logs mariadb
-```
-Common causes: incorrect or missing secrets, a database initialization error, incorrect file permissions on `${DATA_PATH}/mariadb`, or leftover incompatible data from a previous run (try `make fclean` if you're in a throwaway dev environment).
- 
-**WordPress can't connect to MariaDB**
-```bash
-docker logs wordpress
-docker logs mariadb
-```
-Confirm MariaDB is healthy (§11.4) and that WordPress is using `mariadb:3306` and the credentials matching `SQL_USER`/`db_password`.
- 
-**Site isn't reachable**
-```bash
-docker ps
-docker logs nginx
-getent hosts frbranda.42.fr
-```
-Confirm NGINX is up, its logs don't show a config error, and the domain resolves to `127.0.0.1`.
- 
-**Browser shows a certificate warning**
-Expected — the project uses a self-signed certificate rather than one from a public CA, so browsers will always flag it as untrusted. This isn't a bug.
- 
----
- 
----
- 
-## 14. Development & Customization
+## 5. Development & Customization
  
 - **NGINX config:** `srcs/requirements/nginx/conf/`
 - **WordPress setup/tools:** `srcs/requirements/wordpress/tools/`
@@ -555,8 +383,9 @@ Expected — the project uses a self-signed certificate rather than one from a p
 - **Build instructions:** each service's `Dockerfile` under `srcs/requirements/<service>/`
 - **Service definitions, network, volumes:** `srcs/docker-compose.yml`
 - **Non-sensitive configuration:** `srcs/.env`
-After changing a Dockerfile, a config file that's copied at build time, or `docker-compose.yml`, rebuild the affected image(s):
- 
+
+After changing a Dockerfile, a configuration file copied at build time, or docker-compose.yml, rebuild and restart the project:
+
  ```bash
  make
  ```

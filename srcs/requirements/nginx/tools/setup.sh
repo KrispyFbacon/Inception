@@ -9,7 +9,7 @@ set -e
 # The certificate and private key will be used by NGINX for HTTPS
 # Set the certificate subject:
 # CN (Common Name) identifies the domain covered by the certificate.
-# UID identifies the 42 user associated with the certificate.
+# UID identifies the 42 user associated with this project.
 openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
 	-out /etc/nginx/ssl/inception.crt \
 	-keyout /etc/nginx/ssl/inception.key \
