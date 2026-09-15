@@ -74,7 +74,7 @@ Persistent data is stored using two named Docker volumes, `mariadb_vol` and `wor
 
 ### Setup
 
-The current configuration is specific to the `frbranda.42.fr` domain.
+The domain is configured through the `DOMAIN_NAME` variable in `srcs/.env` and should follow the project requirement `<login>.42.fr`.
 
 1. Clone the repository:
     ```bash
@@ -98,9 +98,9 @@ The current configuration is specific to the `frbranda.42.fr` domain.
 
     **Security:** The .env file and Docker secret files contain environment-specific configuration and credentials and are excluded from version control through .gitignore. Never commit actual passwords or secret files to the repository.
 
-4. Add `127.0.0.1 frbranda.42.fr` to your host machine's hosts file. This makes `frbranda.42.fr` resolve to your local machine, allowing the domain to be used to access the website. On `Linux`, the hosts file is located at `/etc/hosts`:
+4. Add `127.0.0.1 <login>.42.fr` to your host machine's hosts file. This makes `<login>.42.fr` resolve to your local machine, allowing the domain to be used to access the website. On `Linux`, the hosts file is located at `/etc/hosts`:
     ```bash
-    echo "127.0.0.1 frbranda.42.fr" | sudo tee -a /etc/hosts
+    echo "127.0.0.1 <login>.42.fr" | sudo tee -a /etc/hosts
     ```
 
 For detailed configuration, customization, and troubleshooting, see `DEV_DOC.md`.
@@ -110,7 +110,7 @@ For detailed configuration, customization, and troubleshooting, see `DEV_DOC.md`
 ```bash
 make            # builds the images and starts all containers
 make down       # stops and removes the containers
-make clean      # removes containers and networks, keeping images and data
+make clean      # stops and removes containers and networks, keeping images and data
 make fclean     # WARNING: removes containers, images, volumes and persistent data under DATA_PATH
 make re         # completely resets and rebuilds the project
 ```
@@ -118,7 +118,7 @@ make re         # completely resets and rebuilds the project
 Once running, the site is reachable at:
  
 ```
-https://frbranda.42.fr
+https://<login>.42.fr
 ```
  
 ### Verifying the setup
